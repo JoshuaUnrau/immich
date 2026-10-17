@@ -67,6 +67,9 @@ enum SettingsKey<T> {
   cleanupKeepAlbumIds<List<String>>(codec: ListCodec(PrimitiveCodec.string)),
   cleanupCutoffDaysAgo<int>(),
   cleanupDefaultsInitialized<bool>(),
+  cleanupAutoEnabled<bool>(),
+  cleanupAutoDaysAgo<int>(),
+  cleanupAutoLastRunMs<int>(),
 
   // Share
   shareFileType<ShareAssetType>(codec: EnumCodec(ShareAssetType.values)),

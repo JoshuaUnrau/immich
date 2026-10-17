@@ -14,7 +14,9 @@ import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/permission.provider.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
+import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/providers/websocket.provider.dart';
+import 'package:immich_mobile/services/auto_free_up.service.dart';
 import 'package:logging/logging.dart';
 
 enum AppLifeCycleEnum { active, inactive, paused, resumed, detached, hidden }
@@ -96,6 +98,11 @@ class AppLifeCycleNotifier extends StateNotifier<AppLifeCycleEnum> {
     }
     _ref.read(websocketProvider.notifier).connect();
     await _handleBetaTimelineResume();
+
+    final userId = _ref.read(currentUserProvider)?.id;
+    if (userId != null) {
+      unawaited(_safeRun(() => _ref.read(autoFreeUpServiceProvider).runIfDue(userId), "auto free up"));
+    }
 
     await _ref.read(notificationPermissionProvider.notifier).getNotificationPermission();
 

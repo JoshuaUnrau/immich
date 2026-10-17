@@ -24,6 +24,7 @@ import 'package:immich_mobile/providers/infrastructure/sync.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/services/auth.service.dart';
+import 'package:immich_mobile/services/auto_free_up.service.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
 import 'package:immich_mobile/services/localization.service.dart';
 import 'package:immich_mobile/utils/bootstrap.dart';
@@ -209,7 +210,9 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
         });
       }
       try {
-        return await backupFuture;
+        final needsRetry = await backupFuture;
+        await _announceAutoFreeUp();
+        return needsRetry;
       } finally {
         cancelTimer?.cancel();
       }
@@ -310,6 +313,14 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       return failed > 0;
     }, (error, stack) => dPrint(() => "Error in backup zone $error, $stack"));
     return needsRetry ?? true;
+  }
+
+  Future<void> _announceAutoFreeUp() async {
+    final userId = _ref?.read(currentUserProvider)?.id;
+    if (userId == null || _isCleanedUp) {
+      return;
+    }
+    await _ref?.read(autoFreeUpServiceProvider).announceIfDue(userId);
   }
 
   Future<bool> _syncAssets({Duration? hashTimeout}) async {

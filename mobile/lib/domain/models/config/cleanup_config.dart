@@ -11,5 +11,9 @@ abstract class CleanupConfig with _$CleanupConfig {
     @Default([]) List<String> keepAlbumIds,
     @Default(-1) int cutoffDaysAgo,
     @Default(false) bool defaultsInitialized,
+    // Unrau fork: automatic free up space
+    @Default(false) bool autoEnabled,
+    @Default(90) int autoDaysAgo,
+    @Default(0) int autoLastRunMs,
   }) = _CleanupConfig;
 }

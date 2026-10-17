@@ -14,6 +14,7 @@ import 'package:immich_mobile/providers/haptic_feedback.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/album.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/utils/bytes_units.dart';
+import 'package:immich_mobile/widgets/settings/auto_free_up_card.dart';
 import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -277,6 +278,8 @@ class _FreeUpSpaceSettingsState extends ConsumerState<FreeUpSpaceSettings> {
                 child: Text(context.t.free_up_space_description, style: context.textTheme.bodyMedium),
               ),
             ),
+
+            if (CurrentPlatform.isAndroid) const AutoFreeUpCard(),
 
             // Keep on device settings card
             Padding(

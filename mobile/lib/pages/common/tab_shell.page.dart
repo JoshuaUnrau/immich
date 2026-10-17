@@ -15,7 +15,9 @@ import 'package:immich_mobile/providers/infrastructure/memory.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
 import 'package:immich_mobile/providers/search/search_input_focus.provider.dart';
 import 'package:immich_mobile/providers/tab.provider.dart';
+import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
+import 'package:immich_mobile/services/auto_free_up.service.dart';
 
 @RoutePage()
 class TabShellPage extends ConsumerStatefulWidget {
@@ -26,6 +28,21 @@ class TabShellPage extends ConsumerStatefulWidget {
 }
 
 class _TabShellPageState extends ConsumerState<TabShellPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Cold start (e.g. tapping the "ready to free up" notice): give sync a moment, then run if due.
+    Future.delayed(const Duration(seconds: 20), () {
+      if (!mounted) {
+        return;
+      }
+      final userId = ref.read(currentUserProvider)?.id;
+      if (userId != null) {
+        unawaited(ref.read(autoFreeUpServiceProvider).runIfDue(userId));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isScreenLandscape = context.orientation == Orientation.landscape;

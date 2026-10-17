@@ -9,6 +9,7 @@ import app.alextran.immich.background.BackgroundWorkerApiImpl
 class ImmichApp : Application() {
   override fun onCreate() {
     super.onCreate()
+    app.alextran.immich.update.SelfUpdate.schedule(this)
     // After the process is killed (by user or system), the first trigger (taking a new picture) is lost.
     // Thus, the BackupWorker is not started. If the system kills the process after each initialization
     // (because of low memory etc.), the backup is never performed.
