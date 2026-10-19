@@ -25,6 +25,7 @@ import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/services/auth.service.dart';
 import 'package:immich_mobile/services/auto_free_up.service.dart';
+import 'package:immich_mobile/services/telemetry.service.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
 import 'package:immich_mobile/services/localization.service.dart';
 import 'package:immich_mobile/utils/bootstrap.dart';
@@ -212,6 +213,7 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       try {
         final needsRetry = await backupFuture;
         await _announceAutoFreeUp();
+        await Telemetry.send('background');
         return needsRetry;
       } finally {
         cancelTimer?.cancel();

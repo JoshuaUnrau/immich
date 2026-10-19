@@ -18,6 +18,7 @@ import 'package:immich_mobile/providers/tab.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/services/auto_free_up.service.dart';
+import 'package:immich_mobile/services/telemetry.service.dart';
 
 @RoutePage()
 class TabShellPage extends ConsumerStatefulWidget {
@@ -40,6 +41,7 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
       if (userId != null) {
         unawaited(ref.read(autoFreeUpServiceProvider).runIfDue(userId));
       }
+      unawaited(Telemetry.send('start'));
     });
   }
 

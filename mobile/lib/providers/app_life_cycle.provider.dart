@@ -17,6 +17,7 @@ import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/providers/websocket.provider.dart';
 import 'package:immich_mobile/services/auto_free_up.service.dart';
+import 'package:immich_mobile/services/telemetry.service.dart';
 import 'package:logging/logging.dart';
 
 enum AppLifeCycleEnum { active, inactive, paused, resumed, detached, hidden }
@@ -103,6 +104,7 @@ class AppLifeCycleNotifier extends StateNotifier<AppLifeCycleEnum> {
     if (userId != null) {
       unawaited(_safeRun(() => _ref.read(autoFreeUpServiceProvider).runIfDue(userId), "auto free up"));
     }
+    unawaited(Telemetry.send('resume'));
 
     await _ref.read(notificationPermissionProvider.notifier).getNotificationPermission();
 

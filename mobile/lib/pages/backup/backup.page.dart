@@ -331,10 +331,14 @@ class _BackupAlbumSelectionCard extends ConsumerWidget {
           }
         }
 
+        // Unrau fork: a long album list pushed the counts and Start button off screen; summarise it.
+        final names = text.trim().substring(context.t.backup_controller_page_backup_selected.length, text.length - 2);
         return Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: Text(
-            text.trim().substring(0, text.length - 2),
+            '${albums.length} albums: $names',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: context.textTheme.labelLarge?.copyWith(color: context.primaryColor),
           ),
         );

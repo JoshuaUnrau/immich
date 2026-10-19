@@ -1,6 +1,7 @@
 package app.alextran.immich.update
 
 import android.Manifest
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -72,8 +73,8 @@ object SelfUpdate {
     require(url.startsWith(SITE) && url.endsWith(".apk") && digest.matches(Regex("[0-9a-f]{64}"))) { "Invalid update feed" }
 
     if (!context.packageManager.canRequestPackageInstalls()) {
-      notify(context, "Allow Immich to install its updates",
-        "Immich ${feed.optString("versionName")} is available. Tap to turn on \"Install unknown apps\" for Immich.",
+      notify(context, "Allow JoshDrive to install its updates",
+        "JoshDrive ${feed.optString("versionName")} is available. Tap to turn on \"Install unknown apps\" for JoshDrive.",
         PendingIntent.getActivity(context, 0,
           Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -89,6 +90,15 @@ object SelfUpdate {
       if (!temp.renameTo(apk)) error("Could not save update")
     }
     if (!sameSignerNewer(context, apk, version)) { apk.delete(); error("Update signer or version mismatch") }
+    if (inUse()) {
+      // Installing closes the app; never do that while Josh is looking at it. Try again shortly.
+      WorkManager.getInstance(context).enqueueUniqueWork(
+        "immich_self_update_retry",
+        ExistingWorkPolicy.REPLACE,
+        OneTimeWorkRequestBuilder<UpdateWorker>().setInitialDelay(20, TimeUnit.MINUTES).build(),
+      )
+      return
+    }
     install(context, apk, feed.optString("versionName", version.toString()))
   }
 
@@ -112,6 +122,12 @@ object SelfUpdate {
         (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
       session.commit(PendingIntent.getBroadcast(context, sessionId, status, flags).intentSender)
     }
+  }
+
+  private fun inUse(): Boolean {
+    val state = ActivityManager.RunningAppProcessInfo()
+    ActivityManager.getMyMemoryState(state)
+    return state.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
   }
 
   internal fun notify(context: Context, title: String, text: String, tap: PendingIntent?) {
@@ -239,12 +255,12 @@ class InstallResultReceiver : BroadcastReceiver() {
         val confirm = (if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
           else intent.getParcelableExtra(Intent.EXTRA_INTENT)) ?: return
         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        SelfUpdate.notify(context, "Immich $version is ready", "Tap to install the verified update.",
+        SelfUpdate.notify(context, "JoshDrive $version is ready", "Tap to install the verified update.",
           PendingIntent.getActivity(context, 1, confirm, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
       }
       PackageInstaller.STATUS_SUCCESS -> {
         File(context.cacheDir, "immich-update.apk").delete()
-        SelfUpdate.notify(context, "Immich updated to $version", "Installed automatically from your server.",
+        SelfUpdate.notify(context, "JoshDrive updated to $version", "Installed automatically from your server.",
           context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
             PendingIntent.getActivity(context, 2, it, PendingIntent.FLAG_IMMUTABLE)
           })
