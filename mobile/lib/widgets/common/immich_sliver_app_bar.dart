@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
@@ -91,9 +90,16 @@ class _ImmichLogoWithText extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedOpacity(
     opacity: IconTheme.of(context).opacity ?? 1,
     duration: kThemeChangeDuration,
-    child: SvgPicture.asset(
-      context.isDarkTheme ? 'assets/immich-logo-inline-dark.svg' : 'assets/immich-logo-inline-light.svg',
-      height: 40,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Image(image: AssetImage('assets/immich-logo.png'), height: 30),
+        const SizedBox(width: 8),
+        Text(
+          'JoshDrive',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: context.primaryColor),
+        ),
+      ],
     ),
   );
 }
