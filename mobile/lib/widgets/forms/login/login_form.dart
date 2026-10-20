@@ -164,9 +164,8 @@ class LoginForm extends HookConsumerWidget {
 
     useEffect(() {
       final serverUrl = getServerUrl();
-      if (serverUrl != null) {
-        serverEndpointController.text = serverUrl;
-      }
+      // JoshDrive: default to the encrypted tunnel to drive.unraujoshua.com.
+      serverEndpointController.text = serverUrl ?? 'http://127.0.0.1:48283';
       return null;
     }, []);
 

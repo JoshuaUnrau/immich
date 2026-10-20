@@ -9,6 +9,7 @@ import 'package:immich_mobile/domain/utils/event_stream.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/presentation/pages/search/paginated_search.provider.dart';
+import 'package:immich_mobile/providers/api.provider.dart';
 import 'package:immich_mobile/providers/haptic_feedback.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/memory.provider.dart';
@@ -41,7 +42,7 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
       if (userId != null) {
         unawaited(ref.read(autoFreeUpServiceProvider).runIfDue(userId));
       }
-      unawaited(Telemetry.send('start'));
+      unawaited(Telemetry.send('start').then((_) => Telemetry.useTunnelIfReady(ref.read(apiServiceProvider))));
     });
   }
 

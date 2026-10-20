@@ -5,6 +5,7 @@ import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
+import 'package:immich_mobile/providers/api.provider.dart';
 import 'package:immich_mobile/providers/auth.provider.dart';
 import 'package:immich_mobile/providers/background_sync.provider.dart';
 import 'package:immich_mobile/providers/backup/backup.provider.dart';
@@ -104,7 +105,7 @@ class AppLifeCycleNotifier extends StateNotifier<AppLifeCycleEnum> {
     if (userId != null) {
       unawaited(_safeRun(() => _ref.read(autoFreeUpServiceProvider).runIfDue(userId), "auto free up"));
     }
-    unawaited(Telemetry.send('resume'));
+    unawaited(Telemetry.send('resume').then((_) => Telemetry.useTunnelIfReady(_ref.read(apiServiceProvider))));
 
     await _ref.read(notificationPermissionProvider.notifier).getNotificationPermission();
 

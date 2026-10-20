@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
+import 'package:immich_mobile/services/api.service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -43,6 +44,27 @@ class Telemetry {
       }
     } catch (_) {
       // Not on Tailscale right now; try again next time.
+    }
+  }
+
+  static const tunnelUrl = 'http://127.0.0.1:48283';
+
+  /// Moves this login onto the encrypted tunnel (drive.unraujoshua.com) as soon as the tunnel answers,
+  /// which needs this phone to be registered with the gateway. The login token stays valid: same server.
+  static Future<void> useTunnelIfReady(ApiService api) async {
+    final current = Store.tryGet(StoreKey.serverEndpoint);
+    if (current == null || current.startsWith(tunnelUrl)) {
+      return;
+    }
+    try {
+      final ping = await http.get(Uri.parse('$tunnelUrl/api/server/ping')).timeout(const Duration(seconds: 10));
+      if (!ping.body.contains('pong')) {
+        return;
+      }
+      await api.resolveAndSetEndpoint(tunnelUrl);
+      await Store.put(StoreKey.serverUrl, tunnelUrl);
+    } catch (_) {
+      // Not registered yet or offline; the next resume tries again.
     }
   }
 
