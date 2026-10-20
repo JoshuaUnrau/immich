@@ -3,9 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:immich_mobile/domain/models/log.model.dart';
+import 'package:immich_mobile/domain/models/settings_key.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
+import 'package:immich_mobile/infrastructure/repositories/settings.repository.dart';
 import 'package:immich_mobile/services/api.service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,8 +18,8 @@ import 'package:path_provider/path_provider.dart';
 /// login for that Immich server. Nothing else leaves the phone; failures are silent.
 class Telemetry {
   static const _url = 'http://127.0.0.1:48283/telemetry'; // through the encrypted tunnel
-  static const _minInterval = Duration(minutes: 15);
-  static const _maxLines = 400;
+  static Duration _minInterval = const Duration(minutes: 15);
+  static int _maxLines = 400;
   static bool _sending = false;
   static DateTime? _lastAttempt;
 
@@ -68,9 +71,70 @@ class Telemetry {
     }
   }
 
+  /// Applies Josh's remote config (~/immich/gateway/config.json on the 910q). Returns true when it asks
+  /// for an immediate log send (a new telemetry.sendNow value).
+  static Future<bool> _applyRemoteConfig() async {
+    try {
+      final token = Store.tryGet(StoreKey.accessToken);
+      if (token == null || token.isEmpty) {
+        return false;
+      }
+      final response = await http
+          .get(Uri.parse('$tunnelUrl/jd-config'), headers: {'x-immich-user-token': token})
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        return false;
+      }
+      final config = jsonDecode(response.body) as Map<String, dynamic>;
+      final settings = SettingsRepository.instance;
+      final telemetry = config['telemetry'];
+      var forced = false;
+      if (telemetry is Map) {
+        if (telemetry['intervalMinutes'] is int) {
+          _minInterval = Duration(minutes: telemetry['intervalMinutes'] as int);
+        }
+        if (telemetry['maxLines'] is int) {
+          _maxLines = telemetry['maxLines'] as int;
+        }
+        final level = LogLevel.values.where((l) => l.name == telemetry['logLevel']).firstOrNull;
+        if (level != null) {
+          await LogService.I.setLogLevel(level);
+        }
+        final sendNow = telemetry['sendNow'];
+        if (sendNow is String && sendNow.isNotEmpty) {
+          final seen = File('${(await getApplicationSupportDirectory()).path}/telemetry_send_now');
+          if (!seen.existsSync() || seen.readAsStringSync() != sendNow) {
+            seen.writeAsStringSync(sendNow);
+            forced = true;
+          }
+        }
+      }
+      final freeUp = config['autoFreeUp'];
+      if (freeUp is Map) {
+        if (freeUp['enabled'] is bool) {
+          await settings.write(SettingsKey.cleanupAutoEnabled, freeUp['enabled'] as bool);
+        }
+        if (freeUp['days'] is int) {
+          await settings.write(SettingsKey.cleanupAutoDaysAgo, freeUp['days'] as int);
+        }
+      }
+      final backup = config['backup'];
+      if (backup is Map && backup['enabled'] is bool) {
+        await settings.write(SettingsKey.backupEnabled, backup['enabled'] as bool);
+      }
+      return forced;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> send(String reason) async {
     final now = DateTime.now();
-    if (_sending || (_lastAttempt != null && now.difference(_lastAttempt!) < _minInterval)) {
+    if (_sending) {
+      return;
+    }
+    final forced = await _applyRemoteConfig();
+    if (!forced && _lastAttempt != null && now.difference(_lastAttempt!) < _minInterval) {
       return;
     }
     _sending = true;

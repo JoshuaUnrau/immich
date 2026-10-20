@@ -54,6 +54,24 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_GET(self):
+        """Remote config for JoshDrive apps (edit ~/immich/gateway/config.json; applied on next fetch)."""
+        if self.path != "/jd-config":
+            return self._reply(404, "not found")
+        token = self.headers.get("x-immich-user-token", "")
+        if not (token and owner(token)):
+            return self._reply(401, "unknown user")
+        try:
+            body = (Path.home() / "immich" / "gateway" / "config.json").read_text()
+        except OSError:
+            body = "{}"
+        data = body.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_POST(self):
         if self.path == "/register-device":
             return self.register()

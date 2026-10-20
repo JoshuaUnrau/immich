@@ -43,7 +43,12 @@ class MainActivity : FlutterFragmentActivity() {
     // Hand the upload to the background worker as soon as the app leaves the screen, instead of
     // waiting for Android's next scheduled run. The delay lets Flutter release its engine lock first.
     android.os.Handler(mainLooper).postDelayed({
-      if (!isChangingConfigurations) BackgroundWorkerApiImpl.enqueueBackgroundWorkerWhenConnected(applicationContext)
+      if (!isChangingConfigurations) {
+        // The app is off screen: clear the in-use lock ourselves (Flutter does not always get its pause
+        // event), otherwise the background worker cancels itself the moment it starts.
+        app.alextran.immich.background.BackgroundWorkerPreferences(applicationContext).setLocked(false)
+        BackgroundWorkerApiImpl.enqueueBackgroundWorkerWhenConnected(applicationContext)
+      }
     }, 3000)
   }
 

@@ -76,7 +76,7 @@ async def handle(ws):
 
     # The app's own log reports ride the same tunnel; send those to the telemetry collector.
     first, first_tag = b.crypto_secretstream_xchacha20poly1305_pull(pull, await ws.recv())
-    upstream = TELEMETRY if first.startswith(b"POST /telemetry ") else UPSTREAM
+    upstream = TELEMETRY if first.startswith((b"POST /telemetry ", b"GET /jd-config ")) else UPSTREAM
     reader, writer = await asyncio.open_connection(*upstream)
     if first:
         writer.write(first)
