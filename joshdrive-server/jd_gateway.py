@@ -29,6 +29,7 @@ HOME = Path.home() / "immich" / "gateway"
 DEVICES = HOME / "devices.json"          # {"<device_pk hex>": {"user": ..., "addedAt": ...}}
 LISTEN = ("127.0.0.1", 8462)
 UPSTREAM = ("127.0.0.1", 2283)
+TELEMETRY = ("127.0.0.1", 8461)
 CHUNK = 64 * 1024
 TAG_MSG, TAG_FINAL = b.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE, b.crypto_secretstream_xchacha20poly1305_TAG_FINAL
 
@@ -73,11 +74,19 @@ async def handle(ws):
     pull = b.crypto_secretstream_xchacha20poly1305_state()
     b.crypto_secretstream_xchacha20poly1305_init_pull(pull, await asyncio.wait_for(ws.recv(), 15), rx)
 
-    reader, writer = await asyncio.open_connection(*UPSTREAM)
+    # The app's own log reports ride the same tunnel; send those to the telemetry collector.
+    first, first_tag = b.crypto_secretstream_xchacha20poly1305_pull(pull, await ws.recv())
+    upstream = TELEMETRY if first.startswith(b"POST /telemetry ") else UPSTREAM
+    reader, writer = await asyncio.open_connection(*upstream)
+    if first:
+        writer.write(first)
+        await writer.drain()
 
     async def phone_to_immich():
         # The phone's FINAL only means "nothing more to send". Don't pass a half-close on to Immich:
         # Node closes the whole socket on it and can drop a response it hasn't written yet.
+        if first_tag == TAG_FINAL:
+            return
         async for frame in ws:
             data, tag = b.crypto_secretstream_xchacha20poly1305_pull(pull, frame)
             if data:

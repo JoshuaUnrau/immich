@@ -14,7 +14,7 @@ import 'package:path_provider/path_provider.dart';
 /// collector on the Immich host (tailnet only). The collector accepts a post only with a valid
 /// login for that Immich server. Nothing else leaves the phone; failures are silent.
 class Telemetry {
-  static const _url = 'https://michelle-thinkcentre-m910q.tail0ffed4.ts.net:8461/telemetry';
+  static const _url = 'http://127.0.0.1:48283/telemetry'; // through the encrypted tunnel
   static const _minInterval = Duration(minutes: 15);
   static const _maxLines = 400;
   static bool _sending = false;
