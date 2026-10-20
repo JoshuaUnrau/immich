@@ -57,8 +57,23 @@ class MainActivity : FlutterFragmentActivity() {
       HttpClientManager.initialize(ctx)
       io.flutter.plugin.common.MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "joshdrive/tunnel")
         .setMethodCallHandler { call, result ->
-          if (call.method == "devicePk") result.success(app.alextran.immich.tunnel.JoshDriveTunnel.devicePublicKeyHex(ctx))
-          else result.notImplemented()
+          when (call.method) {
+            "devicePk" -> result.success(app.alextran.immich.tunnel.JoshDriveTunnel.devicePublicKeyHex(ctx))
+            "progress" -> {
+              val done = (call.argument<Number>("done") ?: 0).toInt()
+              val total = (call.argument<Number>("total") ?: 0).toInt()
+              // Same channel/id as the background worker's notification, so it updates in place.
+              val n = androidx.core.app.NotificationCompat.Builder(ctx, "immich::background_worker::notif")
+                .setSmallIcon(R.drawable.notification_icon)
+                .setContentTitle("JoshDrive is backing up")
+                .setContentText("%,d of %,d photos and videos on your server".format(done, total))
+                .setProgress(total.coerceAtLeast(1), done.coerceAtMost(total), false)
+                .setOnlyAlertOnce(true).setOngoing(true).build()
+              runCatching { androidx.core.app.NotificationManagerCompat.from(ctx).notify(100, n) }
+              result.success(null)
+            }
+            else -> result.notImplemented()
+          }
         }
       NativeVideoPlayerPlugin.dataSourceFactory = HttpClientManager::createDataSourceFactory
       flutterEngine.plugins.add(NetworkApiPlugin())

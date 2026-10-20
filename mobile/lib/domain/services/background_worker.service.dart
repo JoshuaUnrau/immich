@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/constants/constants.dart';
 import 'package:immich_mobile/data/data_controller.dart';
@@ -304,10 +305,24 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
 
       final uploadService = _ref?.read(foregroundUploadServiceProvider);
       var failed = 0;
+      // JoshDrive: live "N of total" progress in the backup notification.
+      final counts = await uploadService?.getBackupCounts(currentUser.id);
+      final total = counts?.total ?? 0;
+      var backedUp = counts == null ? 0 : counts.total - counts.remainder;
+      Future<void> showProgress() => const MethodChannel(
+        'joshdrive/tunnel',
+      ).invokeMethod('progress', {'done': backedUp, 'total': total}).catchError((_) => null);
+      unawaited(showProgress());
       await uploadService?.uploadCandidates(
         currentUser.id,
         _cancellationToken,
-        callbacks: UploadCallbacks(onError: (_, _) => failed++),
+        callbacks: UploadCallbacks(
+          onError: (_, _) => failed++,
+          onSuccess: (_, _) {
+            backedUp++;
+            unawaited(showProgress());
+          },
+        ),
         useSequentialUpload: true,
       );
       _logger.info("Background backup finished, $failed uploads failed");
