@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
@@ -18,6 +19,33 @@ class Telemetry {
   static bool _sending = false;
   static DateTime? _lastAttempt;
 
+  /// Registers this phone's tunnel key with the gateway (over Tailscale, proven by the Immich login),
+  /// so drive.unraujoshua.com accepts it. Done once; harmless to repeat.
+  static Future<void> _registerTunnelDevice(String token) async {
+    try {
+      final done = File('${(await getApplicationSupportDirectory()).path}/tunnel_registered');
+      if (done.existsSync()) {
+        return;
+      }
+      final pk = await const MethodChannel('joshdrive/tunnel').invokeMethod<String>('devicePk');
+      if (pk == null) {
+        return;
+      }
+      final response = await http
+          .post(
+            Uri.parse('https://michelle-thinkcentre-m910q.tail0ffed4.ts.net:8461/register-device'),
+            headers: {'Content-Type': 'application/json', 'x-immich-user-token': token},
+            body: jsonEncode({'devicePk': pk}),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        done.writeAsStringSync(pk);
+      }
+    } catch (_) {
+      // Not on Tailscale right now; try again next time.
+    }
+  }
+
   static Future<void> send(String reason) async {
     final now = DateTime.now();
     if (_sending || (_lastAttempt != null && now.difference(_lastAttempt!) < _minInterval)) {
@@ -30,6 +58,7 @@ class Telemetry {
       if (token == null || token.isEmpty) {
         return;
       }
+      await _registerTunnelDevice(token);
       final marker = File('${(await getApplicationSupportDirectory()).path}/telemetry_last_sent');
       final since = marker.existsSync()
           ? DateTime.tryParse(marker.readAsStringSync()) ?? DateTime.fromMillisecondsSinceEpoch(0)

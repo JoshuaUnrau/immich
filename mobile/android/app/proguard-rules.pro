@@ -45,3 +45,9 @@
 -keep class okio.** { *; }
 -keep class com.example.ok_http.** { *; }
 ##---------------End: proguard configuration for ok_http JNI ----------
+
+# JoshDrive tunnel: JNA reflects over these
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.** { *; }
+-keep interface app.alextran.immich.tunnel.Sodium { *; }
+-dontwarn java.awt.**

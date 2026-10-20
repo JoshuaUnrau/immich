@@ -50,6 +50,11 @@ class MainActivity : FlutterFragmentActivity() {
   companion object {
     fun registerPlugins(ctx: Context, flutterEngine: FlutterEngine) {
       HttpClientManager.initialize(ctx)
+      io.flutter.plugin.common.MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "joshdrive/tunnel")
+        .setMethodCallHandler { call, result ->
+          if (call.method == "devicePk") result.success(app.alextran.immich.tunnel.JoshDriveTunnel.devicePublicKeyHex(ctx))
+          else result.notImplemented()
+        }
       NativeVideoPlayerPlugin.dataSourceFactory = HttpClientManager::createDataSourceFactory
       flutterEngine.plugins.add(NetworkApiPlugin())
 

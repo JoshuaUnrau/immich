@@ -92,6 +92,9 @@ flutter {
 
 dependencies {
   implementation libs.okhttp
+  // JoshDrive encrypted tunnel: libsodium (native lib from lazysodium-android) via JNA
+  implementation 'com.goterl:lazysodium-android:5.1.0@aar'
+  implementation 'net.java.dev.jna:jna:5.14.0@aar'
   implementation libs.cronet.embedded
   implementation libs.media3.datasource.okhttp
   implementation libs.media3.datasource.cronet
