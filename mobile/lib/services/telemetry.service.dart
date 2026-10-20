@@ -154,6 +154,9 @@ class Telemetry {
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       final lines = fresh.length > _maxLines ? fresh.sublist(fresh.length - _maxLines) : fresh;
       final info = await PackageInfo.fromPlatform();
+      final tunnelEvents = await const MethodChannel(
+        'joshdrive/tunnel',
+      ).invokeListMethod<String>('tunnelEvents').catchError((_) => <String>[]);
       String cut(String? s, int n) => s == null ? '' : (s.length > n ? s.substring(0, n) : s);
       final body = jsonEncode({
         'reason': reason,
@@ -161,6 +164,7 @@ class Telemetry {
         'os': Platform.operatingSystemVersion,
         'sentAt': now.toUtc().toIso8601String(),
         'dropped': fresh.length - lines.length,
+        'tunnel': tunnelEvents ?? <String>[],
         'logs': [
           for (final m in lines)
             {

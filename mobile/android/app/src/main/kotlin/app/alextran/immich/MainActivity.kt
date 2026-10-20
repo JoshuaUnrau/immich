@@ -59,6 +59,7 @@ class MainActivity : FlutterFragmentActivity() {
         .setMethodCallHandler { call, result ->
           when (call.method) {
             "devicePk" -> result.success(app.alextran.immich.tunnel.JoshDriveTunnel.devicePublicKeyHex(ctx))
+            "tunnelEvents" -> result.success(app.alextran.immich.tunnel.JoshDriveTunnel.drainEvents())
             "progress" -> {
               val done = (call.argument<Number>("done") ?: 0).toInt()
               val total = (call.argument<Number>("total") ?: 0).toInt()

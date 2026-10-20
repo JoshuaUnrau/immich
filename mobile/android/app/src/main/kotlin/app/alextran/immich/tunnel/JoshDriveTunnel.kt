@@ -60,6 +60,18 @@ object JoshDriveTunnel {
   private val sodium: Sodium by lazy { Native.load("sodium", Sodium::class.java).also { it.sodium_init() } }
   private val http by lazy { OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS).build() }
   @Volatile private var started = false
+  private val events = java.util.ArrayDeque<String>()
+  @Volatile private var open = 0
+
+  /** Recent tunnel events for the app's log report (newest last), then cleared. */
+  @Synchronized fun drainEvents(): List<String> = events.toList().also { events.clear() }
+
+  @Synchronized private fun event(text: String) {
+    val line = java.time.Instant.now().toString() + " open=" + open + " " + text
+    Log.i(TAG, line)
+    events.addLast(line)
+    while (events.size > 300) events.removeFirst()
+  }
   private var devicePk = ByteArray(32)
   private var deviceSk = ByteArray(64)
 
@@ -72,7 +84,7 @@ object JoshDriveTunnel {
       started = true
       Thread({
         while (true) {
-          val socket = try { server.accept() } catch (e: Exception) { Log.w(TAG, "accept failed", e); continue }
+          val socket = try { server.accept() } catch (e: Exception) { event("accept failed: ${e.message}"); continue }
           Thread({ relay(socket) }, "jd-tunnel-conn").apply { isDaemon = true }.start()
         }
       }, "jd-tunnel").apply { isDaemon = true }.start()
@@ -99,6 +111,11 @@ object JoshDriveTunnel {
   }
 
   private fun relay(socket: Socket) {
+    synchronized(this) { open++ }
+    try { relayInner(socket) } finally { synchronized(this) { open-- } }
+  }
+
+  private fun relayInner(socket: Socket) {
     val ready = CountDownLatch(1)
     val pushState = ByteArray(STATE_BYTES)
     val pullState = ByteArray(STATE_BYTES)
@@ -152,19 +169,22 @@ object JoshDriveTunnel {
             }
           }
         } catch (e: Exception) {
-          Log.w(TAG, "tunnel error: ${e.message}")
+          event("tunnel error: ${e.message}")
           webSocket.cancel(); socket.close(); ready.countDown()
         }
       }
 
       private var pullKey = ByteArray(32)
       override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(1000, null); runCatching { socket.close() }; ready.countDown() }
-      override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { runCatching { socket.close() }; ready.countDown() }
+      override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        event("websocket failed: ${t.javaClass.simpleName}: ${t.message} http=${response?.code}")
+        runCatching { socket.close() }; ready.countDown()
+      }
     }
 
     val ws = http.newWebSocket(Request.Builder().url(URL).build(), listener)
     try {
-      if (!ready.await(30, TimeUnit.SECONDS) || stage != 2) { ws.cancel(); socket.close(); return }
+      if (!ready.await(30, TimeUnit.SECONDS) || stage != 2) { event("handshake not completed (stage=$stage)"); ws.cancel(); socket.close(); return }
       val input = socket.getInputStream()
       val buffer = ByteArray(CHUNK)
       while (true) {
