@@ -4,7 +4,7 @@ import '../table/local/asset.dart';
 import '../table/local/album.dart';
 import '../table/local/album_asset.dart';
 
-mergedAsset:
+mergedAsset(:storage AS INTEGER):
 SELECT
 	rae.id as remote_id,
 	(SELECT lae.id FROM local_asset_entity lae WHERE lae.checksum = rae.checksum LIMIT 1) as local_id,
@@ -40,6 +40,11 @@ WHERE
 	AND (
 		rae.stack_id IS NULL
 		OR rae.id = se.primary_asset_id
+	)
+	AND (
+		:storage = 0
+		OR (:storage = 2 AND NOT EXISTS (SELECT 1 FROM local_asset_entity l2 WHERE l2.checksum = rae.checksum))
+		OR (:storage = 3 AND EXISTS (SELECT 1 FROM local_asset_entity l2 WHERE l2.checksum = rae.checksum))
 	)
 
 UNION ALL
@@ -83,10 +88,11 @@ AND NOT EXISTS (
     INNER JOIN local_album_entity la on laa.album_id = la.id
     WHERE laa.asset_id = lae.id AND la.backup_selection = 2 -- excluded
 )
+AND :storage IN (0, 1)
 ORDER BY created_at DESC
 LIMIT $limit;
 
-mergedBucket(:group_by AS INTEGER):
+mergedBucket(:group_by AS INTEGER, :storage AS INTEGER):
 SELECT
 	COUNT(*) as asset_count,
 	bucket_date
@@ -115,6 +121,11 @@ FROM
 			rae.stack_id IS NULL
 			OR rae.id = se.primary_asset_id
 		)
+		AND (
+			:storage = 0
+			OR (:storage = 2 AND NOT EXISTS (SELECT 1 FROM local_asset_entity l2 WHERE l2.checksum = rae.checksum))
+			OR (:storage = 3 AND EXISTS (SELECT 1 FROM local_asset_entity l2 WHERE l2.checksum = rae.checksum))
+		)
 	UNION ALL
 	SELECT
 		CASE
@@ -136,6 +147,7 @@ FROM
 		INNER JOIN local_album_entity la on laa.album_id = la.id
 		WHERE laa.asset_id = lae.id AND la.backup_selection = 2 -- excluded
 	)
+	AND :storage IN (0, 1)
 )
 GROUP BY bucket_date
 ORDER BY bucket_date DESC;

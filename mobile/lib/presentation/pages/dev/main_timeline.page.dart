@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/presentation/widgets/feature_message/feature_message_dialog.widget.dart';
 import 'package:immich_mobile/presentation/widgets/memory/memory_lane.widget.dart';
+import 'package:immich_mobile/presentation/widgets/timeline/storage_filter_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
 import 'package:immich_mobile/providers/feature_message.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/memory.provider.dart';
+import 'package:immich_mobile/widgets/common/immich_sliver_app_bar.dart';
 
 @RoutePage()
 class MainTimelinePage extends ConsumerStatefulWidget {
@@ -41,6 +43,12 @@ class _MainTimelinePageState extends ConsumerState<MainTimelinePage> {
   Widget build(BuildContext context) {
     final hasMemories = ref.watch(memoryLaneProvider.select((state) => state.value?.isNotEmpty ?? false));
     return Timeline(
+      appBar: const ImmichSliverAppBar(
+        floating: true,
+        pinned: false,
+        snap: false,
+        actions: [StorageFilterButton()],
+      ),
       topSliverWidget: const SliverToBoxAdapter(child: MemoryLane()),
       topSliverWidgetHeight: hasMemories ? 200 : 0,
       showStorageIndicator: true,

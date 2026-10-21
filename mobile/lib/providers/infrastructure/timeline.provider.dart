@@ -10,10 +10,14 @@ final timelineArgsProvider = Provider.autoDispose<TimelineArgs>(
   (ref) => throw UnimplementedError('Will be overridden through a ProviderScope.'),
 );
 
+/// JoshDrive: main timeline filter. 0 all, 1 only on this phone, 2 only on the server, 3 on both.
+final timelineStorageFilterProvider = StateProvider<int>((ref) => 0);
+
 final timelineServiceProvider = Provider<TimelineService>(
   (ref) {
     final timelineUsers = ref.watch(timelineUsersProvider).valueOrNull ?? [];
-    final timelineService = ref.watch(timelineFactoryProvider).main(timelineUsers);
+    final storage = ref.watch(timelineStorageFilterProvider);
+    final timelineService = ref.watch(timelineFactoryProvider).main(timelineUsers, storage: storage);
     ref.onDispose(timelineService.dispose);
     return timelineService;
   },
