@@ -196,7 +196,7 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
     );
     final sw = Stopwatch()..start();
     try {
-      if (!await _syncAssets(hashTimeout: hashTimeout)) {
+      if (!await _syncWithRetry(hashTimeout: hashTimeout)) {
         _logger.warning("Remote sync did not complete successfully, skipping backup");
         return true;
       }
@@ -313,6 +313,8 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
         'joshdrive/tunnel',
       ).invokeMethod('progress', {'done': backedUp, 'total': total}).catchError((_) => null);
       unawaited(showProgress());
+      // Refresh every few seconds too, so the upload speed stays current during large videos.
+      final ticker = Timer.periodic(const Duration(seconds: 3), (_) => unawaited(showProgress()));
       await uploadService?.uploadCandidates(
         currentUser.id,
         _cancellationToken,
@@ -325,6 +327,7 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
         ),
         useSequentialUpload: true,
       );
+      ticker.cancel();
       _logger.info("Background backup finished, $failed uploads failed");
       // Retry when at least one upload failed
       return failed > 0;
@@ -338,6 +341,22 @@ class BackgroundWorkerBgService extends BackgroundWorkerFlutterApi {
       return;
     }
     await _ref?.read(autoFreeUpServiceProvider).announceIfDue(userId);
+  }
+
+  // JoshDrive: the server can be briefly unreachable (restart, NAS hiccup, tunnel reconnect).
+  // Try a few times before giving up on this background run.
+  Future<bool> _syncWithRetry({Duration? hashTimeout}) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _syncAssets(hashTimeout: hashTimeout);
+      } catch (error) {
+        if (attempt >= 5 || _isCleanedUp || _cancellationToken.isCompleted) {
+          rethrow;
+        }
+        _logger.warning("Server not reachable (attempt $attempt), retrying in 30s: $error");
+        await Future.delayed(const Duration(seconds: 30));
+      }
+    }
   }
 
   Future<bool> _syncAssets({Duration? hashTimeout}) async {

@@ -61,6 +61,9 @@ object JoshDriveTunnel {
   private val http by lazy { OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS).build() }
   @Volatile private var started = false
   private val events = java.util.ArrayDeque<String>()
+
+  /** Bytes sent phone -> server through the tunnel; the backup notification shows the rate. */
+  val bytesUp = java.util.concurrent.atomic.AtomicLong()
   @Volatile private var open = 0
 
   /** Recent tunnel events for the app's log report (newest last), then cleared. */
@@ -189,6 +192,7 @@ object JoshDriveTunnel {
       val buffer = ByteArray(CHUNK)
       while (true) {
         val n = input.read(buffer)
+        if (n > 0) bytesUp.addAndGet(n.toLong())
         if (n < 0) break
         val plain = buffer.copyOf(n)
         val cipher = ByteArray(n + ABYTES)

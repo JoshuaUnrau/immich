@@ -53,6 +53,29 @@ class MainActivity : FlutterFragmentActivity() {
   }
 
   companion object {
+    private var rateAt = 0L
+    private var rateBytes = 0L
+    private var rateText = ""
+
+    // Upload speed from the tunnel's byte counter, smoothed over at least 2 s.
+    private fun uploadRate(): String {
+      val now = android.os.SystemClock.elapsedRealtime()
+      val bytes = app.alextran.immich.tunnel.JoshDriveTunnel.bytesUp.get()
+      if (rateAt == 0L || bytes < rateBytes) {
+        rateAt = now
+        rateBytes = bytes
+        return rateText
+      }
+      val ms = now - rateAt
+      if (ms >= 2000) {
+        val bps = (bytes - rateBytes) * 1000.0 / ms
+        rateText = if (bps >= 1_000_000) " · %.1f MB/s".format(bps / 1_000_000) else " · %.0f KB/s".format(bps / 1000)
+        rateAt = now
+        rateBytes = bytes
+      }
+      return rateText
+    }
+
     fun registerPlugins(ctx: Context, flutterEngine: FlutterEngine) {
       HttpClientManager.initialize(ctx)
       io.flutter.plugin.common.MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "joshdrive/tunnel")
@@ -63,11 +86,12 @@ class MainActivity : FlutterFragmentActivity() {
             "progress" -> {
               val done = (call.argument<Number>("done") ?: 0).toInt()
               val total = (call.argument<Number>("total") ?: 0).toInt()
+              val text = "%,d of %,d on your server".format(done, total) + uploadRate()
               // Same channel/id as the background worker's notification, so it updates in place.
               val n = androidx.core.app.NotificationCompat.Builder(ctx, "immich::background_worker::notif")
                 .setSmallIcon(R.drawable.notification_icon)
                 .setContentTitle("JoshDrive is backing up")
-                .setContentText("%,d of %,d photos and videos on your server".format(done, total))
+                .setContentText(text)
                 .setProgress(total.coerceAtLeast(1), done.coerceAtMost(total), false)
                 .setOnlyAlertOnce(true).setOngoing(true).build()
               runCatching { androidx.core.app.NotificationManagerCompat.from(ctx).notify(100, n) }
